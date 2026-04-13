@@ -1,0 +1,18 @@
+[project]
+name = "order-service"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
+    "dependency-injector[yaml]>=4.49.0",
+    "fastapi>=0.135.3",
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "python-dotenv>=1.2.2",
+    "ruff>=0.15.10",
+    "sqlalchemy>=2.0.49",
+    "uvicorn>=0.44.0",
+]

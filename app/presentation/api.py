@@ -1,0 +1,67 @@
+from http import HTTPStatus
+from uuid import UUID
+from dependency_injector.wiring import Provide, inject
+
+from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
+
+from app.application.container import ApplicationContainer
+from app.application.create_order import CreateOrderUseCase, OrderDTO
+from app.application.exceptions import OrderNotFound
+from app.application.get_order import GetOrderUseCase
+from app.core.models import Order
+
+router = APIRouter(prefix="/api")
+
+
+class OrderCreateRequest(OrderDTO):  # Наследуется от DTO
+    pass
+
+
+class OrderResponseModel(Order):  # Наследуется от DTO
+    pass
+
+
+@router.post(
+    "/orders",
+    status_code=HTTPStatus.CREATED,
+    response_model=OrderResponseModel,
+)
+@inject
+async def create_order(
+    order: OrderCreateRequest,
+    create_order_use_case: CreateOrderUseCase = Depends(
+        Provide[ApplicationContainer.create_order_use_case]
+    ),
+):
+    try:
+        return await create_order_use_case(order)
+    except Exception as e:
+        print(e)
+        return JSONResponse(
+            content={"message": "Internal server error while creating order"},
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
+
+
+@router.get("/orders/{order_id}", status_code=200, response_model=OrderResponseModel)
+@inject
+async def get_order(
+    order_id: UUID,
+    get_order_use_case: GetOrderUseCase = Depends(
+        Provide[ApplicationContainer.get_order_use_case]
+    ),
+):
+    try:
+        return await get_order_use_case(order_id)
+    except OrderNotFound:
+        return JSONResponse(
+            content={"message": "Order not found"},
+            status_code=HTTPStatus.NOT_FOUND,
+        )
+    except Exception as e:
+        print(e)
+        return JSONResponse(
+            content={"message": "Internal server error while getting order"},
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
