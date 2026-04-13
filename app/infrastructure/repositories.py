@@ -15,7 +15,7 @@ class OrderRepository:
         quantity: int
         item_id: UUID
         status: OrderStatusEnum
-        idempotency_key: UUID
+        idempotency_key: str
 
     def __init__(self, session: AsyncSession):
         self._session = session
@@ -48,6 +48,25 @@ class OrderRepository:
 
         if order is None:
             raise NotFound(f"Order with id {order_id} not found")
+
+        return Order(
+            id=order.id,
+            user_id=order.user_id,
+            quantity=order.quantity,
+            item_id=order.item_id,
+            status=order.status,
+            created_at=order.created_at,
+            updated_at=order.updated_at,
+        )
+
+    async def get_by_idempotency_key(self, idempotency_key: UUID):
+        result = await self._session.execute(
+            select(Orders_tbl).where(Orders_tbl.idempotency_key == idempotency_key)
+        )
+        order = result.scalar_one_or_none()
+
+        if order is None:
+            return None
 
         return Order(
             id=order.id,

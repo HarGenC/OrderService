@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from uuid import UUID
+from venv import logger
 from dependency_injector.wiring import Provide, inject
 
 from fastapi import APIRouter, Depends
@@ -7,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.application.container import ApplicationContainer
 from app.application.create_order import CreateOrderUseCase, OrderDTO
-from app.application.exceptions import OrderNotFound
+from app.application.exceptions import InsufficientQuantity, OrderNotFound
 from app.application.get_order import GetOrderUseCase
 from app.core.models import Order
 
@@ -36,8 +37,14 @@ async def create_order(
 ):
     try:
         return await create_order_use_case(order)
+    except InsufficientQuantity:
+        return JSONResponse(
+            content={"message": "Insufficient product"},
+            status_code=HTTPStatus.BAD_REQUEST,
+        )
+
     except Exception as e:
-        print(e)
+        logger.error(e)
         return JSONResponse(
             content={"message": "Internal server error while creating order"},
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,

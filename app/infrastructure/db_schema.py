@@ -30,4 +30,4 @@ class Orders_tbl(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    idempotency_key: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True)
+    idempotency_key: Mapped[str] = mapped_column(unique=True)
