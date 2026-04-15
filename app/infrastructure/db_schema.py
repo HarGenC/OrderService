@@ -31,3 +31,18 @@ class Orders_tbl(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     idempotency_key: Mapped[str] = mapped_column(unique=True)
+
+
+class Payments_tbl(Base):
+    __tablename__ = "payments"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    amount: Mapped[float]
+    status: Mapped[str]
+    idempotency_key: Mapped[str] = mapped_column(unique=True)
+    error_msg: Mapped[str] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

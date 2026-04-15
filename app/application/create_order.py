@@ -3,8 +3,9 @@ from loguru import logger
 from pydantic import BaseModel
 
 from app.application.exceptions import InsufficientQuantity
-from app.core.models import Order, OrderStatusEnum
+from app.core.models import PaymentDTO, Item, Order, OrderStatusEnum, RequestPaymentDTO
 from app.infrastructure.catalog_service_client import CatalogServiceClient
+from app.infrastructure.payments_service_client import PaymentsServiceClient
 from app.infrastructure.repositories import OrderRepository
 from app.infrastructure.unit_of_work import UnitOfWork
 
@@ -18,10 +19,18 @@ class OrderDTO(BaseModel):
 
 class CreateOrderUseCase:
     def __init__(
-        self, unit_of_work: UnitOfWork, catalog_service_client: CatalogServiceClient
+        self,
+        unit_of_work: UnitOfWork,
+        catalog_service_client: CatalogServiceClient,
+        payments_service_client: PaymentsServiceClient,
+        service_name: str,
+        namespace: str,
     ):
         self._unit_of_work = unit_of_work
         self._catalog_service_client = catalog_service_client
+        self._payments_service_client = payments_service_client
+        self._service_name = (service_name,)
+        self._namespace = namespace
 
     async def __call__(self, order: OrderDTO) -> Order:
         async with self._unit_of_work() as uow:
@@ -50,15 +59,15 @@ class CreateOrderUseCase:
                 logger.error(f"Error during order getting with idempotency_key: {e}")
                 raise
 
-        available_qty = await self._get_available_qty(order.item_id)
-        if order.quantity > available_qty:
+        item = await self._get_item(order.item_id)
+        if order.quantity > item.available_qty:
             raise InsufficientQuantity(
-                f"Requested quantity {order.quantity} exceeds available quantity {available_qty}"
+                f"Requested quantity {order.quantity} exceeds available quantity {item.available_qty}"
             )
 
         async with self._unit_of_work() as uow:
             try:
-                order_result = await uow.orders.create(
+                result_order = await uow.orders.create(
                     order=OrderRepository.CreateDTO(
                         user_id=order.user_id,
                         quantity=order.quantity,
@@ -67,12 +76,55 @@ class CreateOrderUseCase:
                         idempotency_key=order.idempotency_key,
                     )
                 )
+
                 await uow.commit()
             except Exception as e:
                 logger.error(f"Error during order creation: {e}")
                 raise
-            return order_result
 
-    async def _get_available_qty(self, item_id: UUID) -> int:
+        try:
+            payment = await self._payments_service_client.create_payment(
+                RequestPaymentDTO(
+                    order_id=str(result_order.id),
+                    amount=str(item.price * result_order.quantity),
+                    callback_url=f"http://{self._service_name}.{self._namespace}.svc:8000/api/orders/payment-callback",
+                    idempotency_key=str(result_order.id),
+                )
+            )
+        except Exception as e:
+            logger.warning(e)
+            async with self._unit_of_work() as uow:
+                try:
+                    result_order = await uow.orders.update(
+                        order_id=result_order.id, status=OrderStatusEnum.CANCELLED
+                    )
+                    await uow.commit()
+                    return result_order
+                except Exception as e:
+                    logger.error(f"Error during order cancelation: {e}")
+                    raise
+
+        async with self._unit_of_work() as uow:
+            try:
+                await uow.payments.create(
+                    PaymentDTO(
+                        id=payment.id,
+                        user_id=payment.user_id,
+                        order_id=payment.order_id,
+                        amount=payment.amount,
+                        status=payment.status,
+                        idempotency_key=payment.idempotency_key,
+                        created_at=payment.created_at,
+                    )
+                )
+
+                await uow.commit()
+            except Exception as e:
+                logger.error(f"Error during payment creation: {e}")
+                raise
+
+        return result_order
+
+    async def _get_item(self, item_id: UUID) -> Item:
         item = await self._catalog_service_client.get_item(item_id)
-        return item.available_qty
+        return item

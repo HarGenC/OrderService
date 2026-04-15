@@ -2,8 +2,10 @@ from dependency_injector import containers, providers
 
 from app.application.create_order import CreateOrderUseCase
 from app.application.get_order import GetOrderUseCase
+from app.application.process_callback import CallbackProcessingUseCase
 from app.infrastructure.catalog_service_client import CatalogServiceClient
 from app.infrastructure.container import InfrastructureContainer
+from app.infrastructure.payments_service_client import PaymentsServiceClient
 
 
 class ApplicationContainer(containers.DeclarativeContainer):
@@ -19,10 +21,23 @@ class ApplicationContainer(containers.DeclarativeContainer):
         base_url=config.infrastructure.clients.catalog_service.base_url,
     )
 
+    payments_service_client = providers.Singleton[PaymentsServiceClient](
+        PaymentsServiceClient,
+        api_key=config.infrastructure.clients.payments_service.api_key,
+        base_url=config.infrastructure.clients.payments_service.base_url,
+    )
+
     create_order_use_case = providers.Singleton[CreateOrderUseCase](
         CreateOrderUseCase,
         unit_of_work=infrastructure_container.unit_of_work,
         catalog_service_client=catalog_service_client,
+        payments_service_client=payments_service_client,
+        service_name=config.hostname.service_name,
+        namespace=config.hostname.namespace,
+    )
+
+    callback_processing_use_case = providers.Singleton[CallbackProcessingUseCase](
+        CallbackProcessingUseCase, unit_of_work=infrastructure_container.unit_of_work
     )
 
     get_order_use_case = providers.Singleton[GetOrderUseCase](

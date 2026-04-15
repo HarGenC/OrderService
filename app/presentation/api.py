@@ -8,9 +8,14 @@ from fastapi.responses import JSONResponse
 
 from app.application.container import ApplicationContainer
 from app.application.create_order import CreateOrderUseCase, OrderDTO
-from app.application.exceptions import InsufficientQuantity, OrderNotFound
+from app.application.exceptions import (
+    InsufficientQuantity,
+    OrderNotFound,
+    PaymentNotFound,
+)
 from app.application.get_order import GetOrderUseCase
-from app.core.models import Order
+from app.application.process_callback import CallbackProcessingUseCase
+from app.core.models import Order, RequestCallback
 
 router = APIRouter(prefix="/api")
 
@@ -42,7 +47,6 @@ async def create_order(
             content={"message": "Insufficient product"},
             status_code=HTTPStatus.BAD_REQUEST,
         )
-
     except Exception as e:
         logger.error(e)
         return JSONResponse(
@@ -70,5 +74,29 @@ async def get_order(
         print(e)
         return JSONResponse(
             content={"message": "Internal server error while getting order"},
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
+
+
+@router.post("/orders/payment-callback", status_code=200)
+@inject
+async def payment_callback_processing(
+    request_callback: RequestCallback,
+    callback_processing_use_case: CallbackProcessingUseCase = Depends(
+        Provide[ApplicationContainer.callback_processing_use_case]
+    ),
+):
+    try:
+        await callback_processing_use_case(request_callback)
+        return
+    except PaymentNotFound:
+        return JSONResponse(
+            content={"message": "Payment not found"},
+            status_code=HTTPStatus.NOT_FOUND,
+        )
+    except Exception as e:
+        print(e)
+        return JSONResponse(
+            content={"message": "Internal server error while callback processing"},
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         )

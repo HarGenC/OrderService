@@ -13,7 +13,6 @@ class GetOrderUseCase:
         async with self._unit_of_work() as uow:
             try:
                 order = await uow.orders.get_by_id(order_id=order_id)
-                print(order)
                 return order
-            except OrderNotFound:
-                raise NotFound(f"Order with id {order_id} not found")
+            except NotFound:
+                raise OrderNotFound(f"Order with id {order_id} not found")
