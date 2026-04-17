@@ -37,7 +37,7 @@ class CreateOrderUseCase:
         self._unit_of_work = unit_of_work
         self._catalog_service_client = catalog_service_client
         self._payments_service_client = payments_service_client
-        self._service_name = (service_name,)
+        self._service_name = service_name
         self._namespace = namespace
 
     async def __call__(self, order: OrderDTO) -> Order:
