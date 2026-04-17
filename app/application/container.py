@@ -35,8 +35,8 @@ class ApplicationContainer(containers.DeclarativeContainer):
         unit_of_work=infrastructure_container.unit_of_work,
         catalog_service_client=catalog_service_client,
         payments_service_client=payments_service_client,
-        service_name=config.hostname.service_name,
-        namespace=config.hostname.namespace,
+        service_name=config.infrastructure.hostname.service_name,
+        namespace=config.infrastructure.hostname.namespace,
     )
 
     callback_processing_use_case = providers.Singleton[CallbackProcessingUseCase](
