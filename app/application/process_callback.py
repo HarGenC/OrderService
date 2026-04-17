@@ -1,3 +1,5 @@
+from loguru import logger
+
 from app.application.exceptions import PaymentNotFound
 from app.core.models import (
     CreateOutboxEventDTO,
@@ -43,6 +45,12 @@ class CallbackProcessingUseCase:
                     )
                 )
                 await uow.commit()
+                logger.info(
+                    "Order with id {} updated to status {} and event {} created",
+                    order.id,
+                    order_status,
+                    event_type,
+                )
             except NotFound:
                 raise PaymentNotFound(
                     f"Payment with id {request_callback.payment_id} not found"

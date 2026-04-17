@@ -23,6 +23,6 @@ class ProcessInboxEventsUseCase:
                     await uow.orders.update(event.order_id, status)
                     await uow.inbox.mark_as_processed(event.id)
                     await uow.commit()
-                    logger.info(f"Event {event.id} processed successfully")
+                    logger.info("Event {} processed successfully", event.id)
                 except Exception as e:
-                    logger.info(f"Error processing order {event.order_id}: {e}")
+                    logger.info("Error processing order {}: {}", event.order_id, e)

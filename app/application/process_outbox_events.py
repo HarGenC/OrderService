@@ -51,4 +51,6 @@ class ProcessOutboxEventsUseCase:
                     await uow.outbox.mark_as_sent(event.id)
 
                     await uow.commit()
-                    logger.info(f"Event {event.id} sent to Kafka successfully")
+                    logger.info(
+                        f"Event {event.id} with event type: {event.event_type} sent to Kafka successfully"
+                    )
