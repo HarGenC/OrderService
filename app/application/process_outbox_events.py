@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from venv import logger
+from loguru import logger
 
 from app.infrastructure.kafka_producer import KafkaProducer
 from app.infrastructure.unit_of_work import UnitOfWork
@@ -51,3 +51,4 @@ class ProcessOutboxEventsUseCase:
                     await uow.outbox.mark_as_sent(event.id)
 
                     await uow.commit()
+                    logger.info(f"Event {event.id} sent to Kafka successfully")

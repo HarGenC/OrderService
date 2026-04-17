@@ -25,4 +25,4 @@ class ProcessInboxEventsUseCase:
                     await uow.commit()
                     logger.info(f"Event {event.id} processed successfully")
                 except Exception as e:
-                    print(f"Error processing order {event.order_id}: {e}")
+                    logger.info(f"Error processing order {event.order_id}: {e}")

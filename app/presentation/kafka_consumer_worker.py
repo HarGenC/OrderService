@@ -10,4 +10,4 @@ class KafkaConsumerWorker:
     async def run(self):
         while True:
             await self._use_case()
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.01)
