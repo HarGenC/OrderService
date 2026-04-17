@@ -101,11 +101,13 @@ class CreateOrderUseCase:
                 raise
 
         try:
+            callback_url = f"http://{self._service_name}.{self._namespace}.svc:8000/api/orders/payment-callback"
+            logger.debug("callback_url is {}", callback_url)
             payment = await self._payments_service_client.create_payment(
                 RequestPaymentDTO(
                     order_id=str(result_order.id),
                     amount=str(item.price * result_order.quantity),
-                    callback_url=f"http://{self._service_name}.{self._namespace}.svc:8000/api/orders/payment-callback",
+                    callback_url=callback_url,
                     idempotency_key=str(result_order.id),
                 )
             )
