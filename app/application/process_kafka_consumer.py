@@ -25,6 +25,10 @@ class ProcessKafkaConsumerUseCase:
                     continue
                 payload[_key] = _value
 
+            if not event.get("order_id"):
+                logger.warning("Received event with missing order_id, skipping")
+                return False
+
             await uow.inbox.create(
                 uow.inbox.CreateDTO(
                     order_id=event.get("order_id"),

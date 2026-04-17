@@ -26,10 +26,13 @@ class KafkaConsumer:
 
     async def run(self, process: Callable):
         await self.start()
+        logger.info("Kafka consumer is running")
 
         try:
             async for message in self._consumer:
                 if message.value is None:
+                    logger.info("Received message with null value, skipping")
+                    await self._consumer.commit()
                     continue
 
                 event = message.value
@@ -40,6 +43,11 @@ class KafkaConsumer:
                     if is_processed:
                         logger.info(
                             f"Order with id {event.get('order_id')} processed successfully"
+                        )
+                        await self._consumer.commit()
+                    else:
+                        logger.info(
+                            f"Unsupported event type {event.get('event_type')} or order_id is not valid {event.get('order_id')}, skipping"
                         )
                         await self._consumer.commit()
 

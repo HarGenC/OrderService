@@ -19,6 +19,8 @@ class KafkaProducer:
             bootstrap_servers=self._bootstrap_servers,
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),
             key_serializer=lambda k: k.encode("utf-8") if k else None,
+            enable_idempotence=True,
+            acks="all",
         )
         await self._producer.start()
 
