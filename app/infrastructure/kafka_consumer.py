@@ -35,15 +35,16 @@ class KafkaConsumer:
                 event = message.value
 
                 try:
+                    logger.info(f"Received event: {event}")
                     is_processed = await process(event)
                     if is_processed:
-                        print(
+                        logger.info(
                             f"Order with id {event.get('order_id')} processed successfully"
                         )
                         await self._consumer.commit()
 
                 except DuplicateEventError:
-                    print(f"Order with id {event.get('order_id')} is a duplicate")
+                    logger.info(f"Order with id {event.get('order_id')} is a duplicate")
                     await self._consumer.commit()
                     continue
                 except Exception as e:
