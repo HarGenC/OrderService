@@ -2,7 +2,12 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.infrastructure.repositories import OrderRepository, PaymentRepository
+from app.infrastructure.repositories import (
+    InboxRepository,
+    OrderRepository,
+    OutboxRepository,
+    PaymentRepository,
+)
 
 
 class UnitOfWork:
@@ -25,6 +30,8 @@ class _UnitOfWorkImplementation:
         self._session = session
         self._order_repo = None
         self._payment_repo = None
+        self._outbox_repo = None
+        self._inbox_repo = None
 
     @property
     def orders(self):
@@ -37,6 +44,18 @@ class _UnitOfWorkImplementation:
         if self._payment_repo is None:
             self._payment_repo = PaymentRepository(self._session)
         return self._payment_repo
+
+    @property
+    def outbox(self):
+        if self._outbox_repo is None:
+            self._outbox_repo = OutboxRepository(self._session)
+        return self._outbox_repo
+
+    @property
+    def inbox(self):
+        if self._inbox_repo is None:
+            self._inbox_repo = InboxRepository(self._session)
+        return self._inbox_repo
 
     async def commit(self):
         await self._session.commit()

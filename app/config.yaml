@@ -13,4 +13,13 @@ infrastructure:
   hostname:
     service_name: ${SERVICE_NAME}
     namespace: ${NAMESPACE}
+  kafka:
+    producer:
+      bootstrap_servers: ${KAFKA_PRODUCER_BOOTSTRAP_SERVERS:kafka:9092}
+      topic: ${KAFKA_PRODUCER_TOPIC:student_system-order.events}
+    consumer:
+      bootstrap_servers: ${KAFKA_CONSUMER_BOOTSTRAP_SERVERS:kafka:9092}
+      topic: ${KAFKA_CONSUMER_TOPIC:student_system-shipment.events}
+      group_id: ${KAFKA_GROUP_ID:order-service-group}
+
     

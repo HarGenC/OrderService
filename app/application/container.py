@@ -1,8 +1,11 @@
 from dependency_injector import containers, providers
 
+from app.application.process_inbox_events import ProcessInboxEventsUseCase
+from app.application.process_kafka_consumer import ProcessKafkaConsumerUseCase
 from app.application.create_order import CreateOrderUseCase
 from app.application.get_order import GetOrderUseCase
 from app.application.process_callback import CallbackProcessingUseCase
+from app.application.process_outbox_events import ProcessOutboxEventsUseCase
 from app.infrastructure.catalog_service_client import CatalogServiceClient
 from app.infrastructure.container import InfrastructureContainer
 from app.infrastructure.payments_service_client import PaymentsServiceClient
@@ -42,5 +45,22 @@ class ApplicationContainer(containers.DeclarativeContainer):
 
     get_order_use_case = providers.Singleton[GetOrderUseCase](
         GetOrderUseCase,
+        unit_of_work=infrastructure_container.unit_of_work,
+    )
+
+    process_outbox_events_use_case = providers.Singleton[ProcessOutboxEventsUseCase](
+        ProcessOutboxEventsUseCase,
+        unit_of_work=infrastructure_container.unit_of_work,
+        kafka_producer=infrastructure_container.kafka_producer,
+    )
+
+    process_kafka_consumer = providers.Singleton[ProcessKafkaConsumerUseCase](
+        ProcessKafkaConsumerUseCase,
+        unit_of_work=infrastructure_container.unit_of_work,
+        kafka_consumer=infrastructure_container.kafka_consumer,
+    )
+
+    process_inbox_events_use_case = providers.Singleton[ProcessInboxEventsUseCase](
+        ProcessInboxEventsUseCase,
         unit_of_work=infrastructure_container.unit_of_work,
     )

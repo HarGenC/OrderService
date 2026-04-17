@@ -3,7 +3,15 @@ from loguru import logger
 from pydantic import BaseModel
 
 from app.application.exceptions import InsufficientQuantity
-from app.core.models import PaymentDTO, Item, Order, OrderStatusEnum, RequestPaymentDTO
+from app.core.models import (
+    CreateOutboxEventDTO,
+    EventTypeEnum,
+    PaymentDTO,
+    Item,
+    Order,
+    OrderStatusEnum,
+    RequestPaymentDTO,
+)
 from app.infrastructure.catalog_service_client import CatalogServiceClient
 from app.infrastructure.payments_service_client import PaymentsServiceClient
 from app.infrastructure.repositories import OrderRepository
@@ -56,7 +64,7 @@ class CreateOrderUseCase:
                     return order_result
 
             except Exception as e:
-                logger.error(f"Error during order getting with idempotency_key: {e}")
+                logger.error("Error during order getting with idempotency_key: {}", e)
                 raise
 
         item = await self._get_item(order.item_id)
@@ -76,10 +84,20 @@ class CreateOrderUseCase:
                         idempotency_key=order.idempotency_key,
                     )
                 )
-
+                await uow.outbox.create(
+                    CreateOutboxEventDTO(
+                        event_type=EventTypeEnum.ORDER_CREATED,
+                        payload={
+                            "order_id": str(result_order.id),
+                            "user_id": result_order.user_id,
+                            "item_id": str(result_order.item_id),
+                            "quantity": result_order.quantity,
+                        },
+                    )
+                )
                 await uow.commit()
             except Exception as e:
-                logger.error(f"Error during order creation: {e}")
+                logger.error("Error during order creation: {}", e)
                 raise
 
         try:
@@ -98,10 +116,21 @@ class CreateOrderUseCase:
                     result_order = await uow.orders.update(
                         order_id=result_order.id, status=OrderStatusEnum.CANCELLED
                     )
+                    await uow.outbox.create(
+                        CreateOutboxEventDTO(
+                            event_type=EventTypeEnum.ORDER_CANCELLED,
+                            payload={
+                                "order_id": str(result_order.id),
+                                "user_id": result_order.user_id,
+                                "item_id": str(result_order.item_id),
+                                "quantity": result_order.quantity,
+                            },
+                        )
+                    )
                     await uow.commit()
                     return result_order
                 except Exception as e:
-                    logger.error(f"Error during order cancelation: {e}")
+                    logger.error("Error during order cancelation: {}", e)
                     raise
 
         async with self._unit_of_work() as uow:
@@ -120,7 +149,7 @@ class CreateOrderUseCase:
 
                 await uow.commit()
             except Exception as e:
-                logger.error(f"Error during payment creation: {e}")
+                logger.error("Error during payment creation: {}", e)
                 raise
 
         return result_order

@@ -4,3 +4,7 @@ class DoesNotExist(Exception):
 
 class NotFound(ValueError):
     pass
+
+
+class DuplicateEventError(Exception):
+    pass

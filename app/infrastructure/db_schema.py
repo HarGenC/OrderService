@@ -1,11 +1,17 @@
 from datetime import datetime
 import uuid
 
-from sqlalchemy import DateTime, Enum, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import UUID, DateTime, Enum, Index, func
+from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.core.models import OrderStatusEnum
+from app.core.models import (
+    EventTypeEnum,
+    InboxEventStatus,
+    OrderStatusEnum,
+    OutboxEventStatus,
+)
 
 
 class Base(DeclarativeBase):
@@ -46,3 +52,54 @@ class Payments_tbl(Base):
     idempotency_key: Mapped[str] = mapped_column(unique=True)
     error_msg: Mapped[str] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Outbox(Base):
+    __tablename__ = "outbox"
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    event_type: Mapped[EventTypeEnum] = mapped_column(
+        Enum(EventTypeEnum), nullable=False
+    )
+    payload: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSONB), default=dict)
+    status: Mapped[OutboxEventStatus] = mapped_column(
+        Enum(OutboxEventStatus), server_default="PENDING", nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    retry_count: Mapped[int] = mapped_column(default=0)
+    next_retry_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    idempotency_key: Mapped[uuid.UUID] = mapped_column(
+        unique=True, nullable=True, default=uuid.uuid4
+    )
+
+    __table_args__ = (
+        Index(
+            "idx_outbox_pending",
+            "created_at",
+            postgresql_where=("status == 'PENDING'"),
+        ),
+    )
+
+
+class Inbox(Base):
+    __tablename__ = "inbox"
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    order_id: Mapped[str] = mapped_column(unique=True, nullable=False)
+    event_type: Mapped[str] = mapped_column(nullable=False)
+    payload: Mapped[dict] = mapped_column(MutableDict.as_mutable(JSONB), nullable=False)
+    status: Mapped[InboxEventStatus] = mapped_column(
+        Enum(InboxEventStatus), server_default="PENDING", nullable=False
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

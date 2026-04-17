@@ -12,6 +12,23 @@ class OrderStatusEnum(StrEnum):
     CANCELLED = "CANCELLED"
 
 
+class OutboxEventStatus(StrEnum):
+    PENDING = "PENDING"
+    SENT = "SENT"
+
+
+class InboxEventStatus(StrEnum):
+    PENDING = "PENDING"
+    PROCESSED = "PROCESSED"
+
+
+class EventTypeEnum(StrEnum):
+    ORDER_CREATED = "order.created"
+    ORDER_PAID = "order.paid"
+    ORDER_SHIPPED = "order.shipped"
+    ORDER_CANCELLED = "order.cancelled"
+
+
 class Order(BaseModel):
     id: UUID
     user_id: str
@@ -61,3 +78,29 @@ class RequestCallback(BaseModel):
     status: str
     amount: Decimal
     error_message: str | None
+
+
+class CreateOutboxEventDTO(BaseModel):
+    event_type: EventTypeEnum
+    payload: dict
+
+
+class OutboxEvent(BaseModel):
+    id: UUID
+    event_type: EventTypeEnum
+    payload: dict
+    status: OutboxEventStatus
+    created_at: datetime
+    idempotency_key: UUID
+    retry_count: int
+    next_retry_at: datetime | None
+
+
+class InboxEvent(BaseModel):
+    id: UUID
+    order_id: UUID
+    event_type: EventTypeEnum
+    payload: dict
+    status: InboxEventStatus
+    created_at: datetime
+    processed_at: datetime | None

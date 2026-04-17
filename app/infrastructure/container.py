@@ -3,7 +3,9 @@ from typing import Callable
 from dependency_injector import containers, providers
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker
+from app.infrastructure.kafka_consumer import KafkaConsumer
 from app.infrastructure.unit_of_work import UnitOfWork
+from app.infrastructure.kafka_producer import KafkaProducer
 
 
 class InfrastructureContainer(containers.DeclarativeContainer):
@@ -22,4 +24,17 @@ class InfrastructureContainer(containers.DeclarativeContainer):
 
     unit_of_work = providers.Singleton[UnitOfWork](
         UnitOfWork, session_factory=session_factory
+    )
+
+    kafka_producer = providers.Singleton[KafkaProducer](
+        KafkaProducer,
+        bootstrap_servers=config.kafka.producer.bootstrap_servers,
+        topic=config.kafka.producer.topic,
+    )
+
+    kafka_consumer = providers.Singleton[KafkaConsumer](
+        KafkaConsumer,
+        bootstrap_servers=config.kafka.consumer.bootstrap_servers,
+        kafka_group_id=config.kafka.consumer.group_id,
+        topic=config.kafka.consumer.topic,
     )

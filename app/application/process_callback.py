@@ -1,5 +1,10 @@
 from app.application.exceptions import PaymentNotFound
-from app.core.models import OrderStatusEnum, RequestCallback
+from app.core.models import (
+    CreateOutboxEventDTO,
+    EventTypeEnum,
+    OrderStatusEnum,
+    RequestCallback,
+)
 from app.infrastructure.exceptions import NotFound
 from app.infrastructure.unit_of_work import UnitOfWork
 
@@ -21,10 +26,22 @@ class CallbackProcessingUseCase:
                 )
                 if request_callback.status == "failed":
                     order_status = OrderStatusEnum.CANCELLED
+                    event_type = EventTypeEnum.ORDER_CANCELLED
                 else:
                     order_status = OrderStatusEnum.PAID
+                    event_type = EventTypeEnum.ORDER_PAID
 
-                await uow.orders.update(request_callback.order_id, order_status)
+                order = await uow.orders.update(request_callback.order_id, order_status)
+                await uow.outbox.create(
+                    CreateOutboxEventDTO(
+                        event_type=event_type,
+                        payload={
+                            "order_id": str(order.id),
+                            "item_id": str(order.item_id),
+                            "quantity": order.quantity,
+                        },
+                    )
+                )
                 await uow.commit()
             except NotFound:
                 raise PaymentNotFound(
