@@ -96,13 +96,14 @@ class CreateOrderUseCase:
                     )
                 )
                 await uow.commit()
+                logger.info("Order with id {} created successfully", result_order.id)
             except Exception as e:
                 logger.error("Error during order creation: {}", e)
                 raise
 
         try:
             callback_url = f"http://{self._service_name}.{self._namespace}.svc:8000/api/orders/payment-callback"
-            logger.debug("callback_url is {}", callback_url)
+            logger.info("callback_url is {}", callback_url)
             payment = await self._payments_service_client.create_payment(
                 RequestPaymentDTO(
                     order_id=str(result_order.id),
@@ -110,6 +111,11 @@ class CreateOrderUseCase:
                     callback_url=callback_url,
                     idempotency_key=str(result_order.id),
                 )
+            )
+            logger.info(
+                "Payment with id {} created in external service successfully for order id {}",
+                payment.id,
+                result_order.id,
             )
         except Exception as e:
             logger.warning(e)
@@ -130,6 +136,10 @@ class CreateOrderUseCase:
                         )
                     )
                     await uow.commit()
+                    logger.info(
+                        "Order with id {} cancelled successfully due to payment service error",
+                        result_order.id,
+                    )
                     return result_order
                 except Exception as e:
                     logger.error("Error during order cancelation: {}", e)
@@ -150,6 +160,11 @@ class CreateOrderUseCase:
                 )
 
                 await uow.commit()
+                logger.info(
+                    "Payment with id {} created successfully for order id {}",
+                    payment.id,
+                    result_order.id,
+                )
             except Exception as e:
                 logger.error("Error during payment creation: {}", e)
                 raise
