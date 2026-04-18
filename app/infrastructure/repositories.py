@@ -325,17 +325,20 @@ class NotificationRepository:
     class CreateDTO(BaseModel):
         message: str
         reference_id: UUID
+        idempotency_key: str
 
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def create(self, event: CreateDTO) -> Notification:
+    async def create(self, event: CreateDTO) -> NotificationDTO:
         stmt = (
             insert(Notification)
             .values(
                 message=event.message,
                 reference_id=event.reference_id,
+                idempotency_key=event.idempotency_key,
             )
+            .on_conflict_do_nothing(index_elements=["idempotency_key"])
             .returning(Notification)
         )
         result = await self._session.execute(stmt)
@@ -343,7 +346,9 @@ class NotificationRepository:
         row = result.scalar_one_or_none()
 
         if row is None:
-            raise ValueError("Failed to create notification")
+            raise DuplicateEventError(
+                f"Notification for reference_id {event.reference_id} already exists"
+            )
 
         await self._session.flush()
 
@@ -352,7 +357,7 @@ class NotificationRepository:
             event.reference_id,
             event.message,
         )
-        return Notification(
+        return NotificationDTO(
             id=row.id,
             message=row.message,
             reference_id=row.reference_id,

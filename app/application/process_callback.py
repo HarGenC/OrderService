@@ -50,6 +50,7 @@ class CallbackProcessingUseCase:
                     uow.notification.CreateDTO(
                         message=message,
                         reference_id=order.id,
+                        idempotency_key=f"{order.id}:{str(order_status)}",
                     )
                 )
                 await uow.commit()

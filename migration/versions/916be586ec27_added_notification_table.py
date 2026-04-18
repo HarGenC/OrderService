@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("message", sa.String(), nullable=False),
         sa.Column("reference_id", sa.UUID(), nullable=False),
-        sa.Column("idempotency_key", sa.Uuid(), nullable=False),
+        sa.Column("idempotency_key", sa.String(), nullable=False),
         sa.Column("status", sa.String(), nullable=False),
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(

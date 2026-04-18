@@ -27,7 +27,9 @@ class ProcessInboxEventsUseCase:
                     await uow.inbox.mark_as_processed(event.id)
                     await uow.notification.create(
                         uow.notification.CreateDTO(
-                            message=message, reference_id=event.order_id
+                            message=message,
+                            reference_id=event.order_id,
+                            idempotency_key=f"{event.order_id}:{str(status)}",
                         )
                     )
                     await uow.commit()

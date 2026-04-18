@@ -7,6 +7,7 @@ do
 done
 
 echo "Running migrations..."
+uv run alembic downgrade base
 uv run alembic upgrade head
 
 echo "Starting app..."

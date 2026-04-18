@@ -35,7 +35,8 @@ class ProcessNotificationUseCase:
                         )
                     )
                     logger.info(
-                        "Notification with order id: {}. Sent successfully with message: {}",
+                        "Notification {} with order id: {}. Sent successfully with message: {}",
+                        notification.id,
                         notification.reference_id,
                         notification.message,
                     )

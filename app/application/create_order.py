@@ -111,6 +111,7 @@ class CreateOrderUseCase:
                     uow.notification.CreateDTO(
                         message="CANCELLED: Ваш заказ отменен. Причина: ошибка при обработке платежа",
                         reference_id=result_order.id,
+                        idempotency_key=str(f"{result_order.id}:CANCELLED"),
                     )
                 )
                 await uow.commit()
@@ -196,6 +197,7 @@ class CreateOrderUseCase:
                     uow.notification.CreateDTO(
                         message="NEW: Ваш заказ создан и ожидает оплаты",
                         reference_id=result_order.id,
+                        idempotency_key=str(f"{result_order.id}:NEW"),
                     )
                 )
                 await uow.commit()

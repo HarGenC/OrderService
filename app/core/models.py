@@ -110,7 +110,7 @@ class NotificationDTO(BaseModel):
     id: UUID
     message: str
     reference_id: UUID
-    idempotency_key: UUID
+    idempotency_key: str
     status: str
     created_at: datetime
     sent_at: datetime | None

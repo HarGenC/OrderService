@@ -112,9 +112,7 @@ class Notification(Base):
     )
     message: Mapped[str] = mapped_column(nullable=False)
     reference_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
-    idempotency_key: Mapped[uuid.UUID] = mapped_column(
-        unique=True, nullable=False, default=uuid.uuid4
-    )
+    idempotency_key: Mapped[str] = mapped_column(unique=True, nullable=False)
     status: Mapped[str] = mapped_column(nullable=False, default="PENDING")
     sent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
