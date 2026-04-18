@@ -35,8 +35,8 @@ class ProcessNotificationUseCase:
                         )
                     )
                     logger.info(
-                        "Notification {} sent successfully with message: {}",
-                        notification.id,
+                        "Notification with order id: {}. Sent successfully with message: {}",
+                        notification.reference_id,
                         notification.message,
                     )
                     await uow.notification.mark_as_sent(notification.id)

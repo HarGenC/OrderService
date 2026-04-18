@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import List
 from uuid import UUID
 
+from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func, or_, select
@@ -342,12 +343,15 @@ class NotificationRepository:
         row = result.scalar_one_or_none()
 
         if row is None:
-            raise DuplicateEventError(
-                f"Notification {event.idempotency_key} already exists"
-            )
+            raise ValueError("Failed to create notification")
 
         await self._session.flush()
 
+        logger.info(
+            "Notification with reference_id {} created successfully with message: {} and wait commit",
+            event.reference_id,
+            event.message,
+        )
         return Notification(
             id=row.id,
             message=row.message,
