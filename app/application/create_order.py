@@ -127,7 +127,6 @@ class CreateOrderUseCase:
         self, order: Order, item: Item
     ) -> PaymentDTO:
         callback_url = f"http://{self._service_name}.{self._namespace}.svc:8000/api/orders/payment-callback"
-        logger.info("callback_url is {}", callback_url)
         payment = await self._payments_service_client.create_payment(
             RequestPaymentDTO(
                 order_id=str(order.id),

@@ -37,5 +37,5 @@ class ProcessKafkaConsumerUseCase:
                 )
             )
             await uow.commit()
-            logger.info(f"Order with id {event.get('order_id')} committed")
+            logger.info("Order with id {} committed", event.get("order_id"))
             return True

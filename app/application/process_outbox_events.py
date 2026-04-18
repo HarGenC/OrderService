@@ -38,7 +38,7 @@ class ProcessOutboxEventsUseCase:
                             topic="student_system-order.events",
                         )
                     except Exception as e:
-                        logger.info(f"Error sending event {event.id} to Kafka: {e}")
+                        logger.info("Error sending event {} to Kafka: {}", event.id, e)
                         await uow.outbox.update_retry_count(
                             id=event.id,
                             retry_count=event.retry_count + 1,
@@ -52,5 +52,7 @@ class ProcessOutboxEventsUseCase:
 
                     await uow.commit()
                     logger.info(
-                        f"Event {event.id} with event type: {event.event_type} sent to Kafka successfully"
+                        "Event {} with event type: {} sent to Kafka successfully",
+                        event.id,
+                        event.event_type,
                     )

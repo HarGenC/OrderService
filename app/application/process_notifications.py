@@ -34,9 +34,13 @@ class ProcessNotificationUseCase:
                             idempotency_key=str(notification.idempotency_key),
                         )
                     )
+                    logger.info(
+                        "Notification {} sent successfully with message: {}",
+                        notification.id,
+                        notification.message,
+                    )
                     await uow.notification.mark_as_sent(notification.id)
                     await uow.commit()
-                    logger.info("Notification {} sent successfully", notification.id)
                 except Exception as e:
                     await uow.notification.update_retry_count(
                         id=notification.id,
