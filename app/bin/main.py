@@ -32,7 +32,7 @@ async def main():
     logger.remove()
     logger.add(
         sys.stderr,
-        level=presentation_container.config.logger.level,
+        level=presentation_container.config.infrastructure.logger.level(),
         colorize=True,
         format="{time:HH:mm:ss} | {level} | {message}",
     )
