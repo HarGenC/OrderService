@@ -15,6 +15,7 @@ class ProcessInboxEventsUseCase:
             if not events:
                 return
             for event in events:
+                logger.debug("event: {}", event)
                 try:
                     if event.event_type == EventTypeEnum.ORDER_SHIPPED:
                         status = OrderStatusEnum.SHIPPED
@@ -22,14 +23,15 @@ class ProcessInboxEventsUseCase:
                     else:
                         status = OrderStatusEnum.CANCELLED
                         message = f"CANCELLED: Ваш заказ отменен. Причина: {event.payload.get('reason', 'неизвестная причина')}"
+                    await uow.orders.update(event.order_id, status)
+                    await uow.inbox.mark_as_processed(event.id)
                     await uow.notification.create(
                         uow.notification.CreateDTO(
                             message=message, reference_id=event.order_id
                         )
                     )
-                    await uow.orders.update(event.order_id, status)
-                    await uow.inbox.mark_as_processed(event.id)
                     await uow.commit()
                     logger.info("Event {} processed successfully", event.id)
                 except Exception as e:
+                    await uow.rollback()
                     logger.info("Error processing order {}: {}", event.order_id, e)

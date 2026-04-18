@@ -67,3 +67,6 @@ class _UnitOfWorkImplementation:
 
     async def commit(self):
         await self._session.commit()
+
+    async def rollback(self):
+        await self._session.rollback()

@@ -25,13 +25,17 @@ async def build_api(container: ApplicationContainer):
 
 async def main():
     load_dotenv()
-    logger.remove()
-    logger.add(
-        sys.stderr, colorize=True, format="{time:HH:mm:ss} | {level} | {message}"
-    )
 
     presentation_container = PresentationContainer()
     presentation_container.config.from_yaml("app/config.yaml", required=True)
+
+    logger.remove()
+    logger.add(
+        sys.stderr,
+        level=presentation_container.config.logger.level,
+        colorize=True,
+        format="{time:HH:mm:ss} | {level} | {message}",
+    )
 
     app = await build_api(presentation_container.application)
     outbox_worker: OutboxWorker = presentation_container.outbox_worker()

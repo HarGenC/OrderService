@@ -24,5 +24,7 @@ infrastructure:
       bootstrap_servers: ${KAFKA_CONSUMER_BOOTSTRAP_SERVERS:kafka:9092}
       topic: ${KAFKA_CONSUMER_TOPIC:student_system-shipment.events}
       group_id: ${KAFKA_GROUP_ID:order-service-group}
+  logger:
+    level: ${LOG_LEVEL:INFO}
 
     

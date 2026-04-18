@@ -31,14 +31,14 @@ class KafkaConsumer:
         try:
             async for message in self._consumer:
                 if message.value is None:
-                    logger.info("Received message with null value, skipping")
+                    logger.debug("Received message with null value, skipping")
                     await self._consumer.commit()
                     continue
 
                 event = message.value
 
                 try:
-                    logger.info(f"Received event: {event}")
+                    logger.debug(f"Received event: {event}")
                     is_processed = await process(event)
                     if is_processed:
                         logger.info(
