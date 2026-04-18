@@ -29,13 +29,11 @@ class CallbackProcessingUseCase:
                 if request_callback.status == "failed":
                     order_status = OrderStatusEnum.CANCELLED
                     event_type = EventTypeEnum.ORDER_CANCELLED
-                    message = (
-                        f"Ваш заказ отменен. Причина:{request_callback.error_message}"
-                    )
+                    message = f"CANCELLED: Ваш заказ отменен. Причина:{request_callback.error_message}"
                 else:
                     order_status = OrderStatusEnum.PAID
                     event_type = EventTypeEnum.ORDER_PAID
-                    message = "Ваш заказ успешно оплачен и готов к отправке"
+                    message = "PAID: Ваш заказ успешно оплачен и готов к отправке"
 
                 order = await uow.orders.update(request_callback.order_id, order_status)
                 await uow.outbox.create(

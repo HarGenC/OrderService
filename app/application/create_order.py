@@ -109,7 +109,7 @@ class CreateOrderUseCase:
 
                 await uow.notification.create(
                     uow.notification.CreateDTO(
-                        message="Ваш заказ отменен. Причина: ошибка при обработке платежа",
+                        message="CANCELLED: Ваш заказ отменен. Причина: ошибка при обработке платежа",
                         reference_id=result_order.id,
                     )
                 )
@@ -194,7 +194,7 @@ class CreateOrderUseCase:
                 )
                 await uow.notification.create(
                     uow.notification.CreateDTO(
-                        message="Ваш заказ создан и ожидает оплаты",
+                        message="NEW: Ваш заказ создан и ожидает оплаты",
                         reference_id=result_order.id,
                     )
                 )
