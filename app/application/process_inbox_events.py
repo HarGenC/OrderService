@@ -18,8 +18,15 @@ class ProcessInboxEventsUseCase:
                 try:
                     if event.event_type == EventTypeEnum.ORDER_SHIPPED:
                         status = OrderStatusEnum.SHIPPED
+                        message = "Ваш заказ отправлен в доставку"
                     else:
                         status = OrderStatusEnum.CANCELLED
+                        message = f"Ваш заказ отменен. Причина: {event.payload.get('reason', 'неизвестная причина')}"
+                    await uow.notification.create(
+                        uow.notification.CreateDTO(
+                            message=message, reference_id=event.order_id
+                        )
+                    )
                     await uow.orders.update(event.order_id, status)
                     await uow.inbox.mark_as_processed(event.id)
                     await uow.commit()

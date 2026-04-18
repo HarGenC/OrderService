@@ -29,9 +29,13 @@ class CallbackProcessingUseCase:
                 if request_callback.status == "failed":
                     order_status = OrderStatusEnum.CANCELLED
                     event_type = EventTypeEnum.ORDER_CANCELLED
+                    message = (
+                        f"Ваш заказ отменен. Причина:{request_callback.error_message}"
+                    )
                 else:
                     order_status = OrderStatusEnum.PAID
                     event_type = EventTypeEnum.ORDER_PAID
+                    message = "Ваш заказ успешно оплачен и готов к отправке"
 
                 order = await uow.orders.update(request_callback.order_id, order_status)
                 await uow.outbox.create(
@@ -42,6 +46,12 @@ class CallbackProcessingUseCase:
                             "item_id": str(order.item_id),
                             "quantity": order.quantity,
                         },
+                    )
+                )
+                await uow.notification.create(
+                    uow.notification.CreateDTO(
+                        message=message,
+                        reference_id=order.id,
                     )
                 )
                 await uow.commit()

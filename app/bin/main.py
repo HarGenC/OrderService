@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 
 from app.presentation.api import router
 from app.presentation.kafka_consumer_worker import KafkaConsumerWorker
+from app.presentation.notification_worker import NotificationWorker
 from app.presentation.outbox_worker import OutboxWorker
 
 
@@ -38,6 +39,9 @@ async def main():
         presentation_container.kafka_consumer_worker()
     )
     inbox_worker: InboxWorker = presentation_container.inbox_worker()
+    notification_worker: NotificationWorker = (
+        presentation_container.notification_worker()
+    )
 
     api_task = asyncio.create_task(
         uvicorn.Server(
@@ -47,8 +51,13 @@ async def main():
     outbox_worker_task = asyncio.create_task(outbox_worker.run())
     kafka_consumer_worker_task = asyncio.create_task(kafka_consumer_worker.run())
     inbox_worker_task = asyncio.create_task(inbox_worker.run())
+    notification_worker_task = asyncio.create_task(notification_worker.run())
     await asyncio.gather(
-        api_task, outbox_worker_task, kafka_consumer_worker_task, inbox_worker_task
+        api_task,
+        outbox_worker_task,
+        kafka_consumer_worker_task,
+        inbox_worker_task,
+        notification_worker_task,
     )
 
 

@@ -10,6 +10,9 @@ infrastructure:
     payments_service:
       api_key: ${X_API_KEY}
       base_url: ${PAYMENTS_SERVICE_BASE_URL}
+    notification_service:
+      api_key: ${X_API_KEY}
+      base_url: ${NOTIFICATION_SERVICE_BASE_URL}
   hostname:
     service_name: ${SERVICE_NAME}
     namespace: ${NAMESPACE}

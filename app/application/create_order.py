@@ -41,6 +41,109 @@ class CreateOrderUseCase:
         self._namespace = namespace
 
     async def __call__(self, order: OrderDTO) -> Order:
+        result = await self._check_idempotency_key(order)
+        if result is not None:
+            return result
+
+        item = await self._get_item(order.item_id)
+        if order.quantity > item.available_qty:
+            raise InsufficientQuantity(
+                f"Requested quantity {order.quantity} exceeds available quantity {item.available_qty}"
+            )
+
+        result_order = await self._create_order(order)
+
+        try:
+            payment = await self._create_payment_in_external_service(result_order, item)
+        except Exception as e:
+            logger.error("Error during payment creation in external service: {}", e)
+            return await self._cancel_order_on_payment_failure(result_order.id)
+
+        await self._record_payment(payment, result_order)
+
+        return result_order
+
+    async def _record_payment(self, payment: PaymentDTO, result_order: Order) -> None:
+        async with self._unit_of_work() as uow:
+            try:
+                await uow.payments.create(
+                    PaymentDTO(
+                        id=payment.id,
+                        user_id=payment.user_id,
+                        order_id=payment.order_id,
+                        amount=payment.amount,
+                        status=payment.status,
+                        idempotency_key=payment.idempotency_key,
+                        created_at=payment.created_at,
+                    )
+                )
+
+                await uow.commit()
+                logger.info(
+                    "Payment with id {} created successfully for order id {}",
+                    payment.id,
+                    result_order.id,
+                )
+            except Exception as e:
+                logger.error("Error during payment creation: {}", e)
+                raise
+
+    async def _cancel_order_on_payment_failure(self, order_id: UUID) -> Order:
+        logger.warning("Cancelling order due to payment service error")
+        async with self._unit_of_work() as uow:
+            try:
+                result_order = await uow.orders.update(
+                    order_id=order_id, status=OrderStatusEnum.CANCELLED
+                )
+                await uow.outbox.create(
+                    CreateOutboxEventDTO(
+                        event_type=EventTypeEnum.ORDER_CANCELLED,
+                        payload={
+                            "order_id": str(result_order.id),
+                            "user_id": result_order.user_id,
+                            "item_id": str(result_order.item_id),
+                            "quantity": result_order.quantity,
+                        },
+                    )
+                )
+
+                await uow.notification.create(
+                    uow.notification.CreateDTO(
+                        message="Ваш заказ отменен. Причина: ошибка при обработке платежа",
+                        reference_id=result_order.id,
+                    )
+                )
+                await uow.commit()
+                logger.info(
+                    "Order with id {} cancelled successfully due to payment service error",
+                    result_order.id,
+                )
+                return result_order
+            except Exception as e:
+                logger.error("Error during order cancelation: {}", e)
+                raise
+
+    async def _create_payment_in_external_service(
+        self, order: Order, item: Item
+    ) -> PaymentDTO:
+        callback_url = f"http://{self._service_name}.{self._namespace}.svc:8000/api/orders/payment-callback"
+        logger.info("callback_url is {}", callback_url)
+        payment = await self._payments_service_client.create_payment(
+            RequestPaymentDTO(
+                order_id=str(order.id),
+                amount=str(item.price * order.quantity),
+                callback_url=callback_url,
+                idempotency_key=str(order.id),
+            )
+        )
+        logger.info(
+            "Payment with id {} created in external service successfully for order id {}",
+            payment.id,
+            order.id,
+        )
+        return payment
+
+    async def _check_idempotency_key(self, order: OrderDTO) -> None | Order:
         async with self._unit_of_work() as uow:
             try:
                 order_result = await uow.orders.get_by_idempotency_key(
@@ -67,12 +170,7 @@ class CreateOrderUseCase:
                 logger.error("Error during order getting with idempotency_key: {}", e)
                 raise
 
-        item = await self._get_item(order.item_id)
-        if order.quantity > item.available_qty:
-            raise InsufficientQuantity(
-                f"Requested quantity {order.quantity} exceeds available quantity {item.available_qty}"
-            )
-
+    async def _create_order(self, order: OrderDTO) -> Order:
         async with self._unit_of_work() as uow:
             try:
                 result_order = await uow.orders.create(
@@ -95,81 +193,19 @@ class CreateOrderUseCase:
                         },
                     )
                 )
+                await uow.notification.create(
+                    uow.notification.CreateDTO(
+                        message="Ваш заказ создан и ожидает оплаты",
+                        reference_id=result_order.id,
+                    )
+                )
                 await uow.commit()
                 logger.info("Order with id {} created successfully", result_order.id)
             except Exception as e:
                 logger.error("Error during order creation: {}", e)
                 raise
 
-        try:
-            callback_url = f"http://{self._service_name}.{self._namespace}.svc:8000/api/orders/payment-callback"
-            logger.info("callback_url is {}", callback_url)
-            payment = await self._payments_service_client.create_payment(
-                RequestPaymentDTO(
-                    order_id=str(result_order.id),
-                    amount=str(item.price * result_order.quantity),
-                    callback_url=callback_url,
-                    idempotency_key=str(result_order.id),
-                )
-            )
-            logger.info(
-                "Payment with id {} created in external service successfully for order id {}",
-                payment.id,
-                result_order.id,
-            )
-        except Exception as e:
-            logger.warning(e)
-            async with self._unit_of_work() as uow:
-                try:
-                    result_order = await uow.orders.update(
-                        order_id=result_order.id, status=OrderStatusEnum.CANCELLED
-                    )
-                    await uow.outbox.create(
-                        CreateOutboxEventDTO(
-                            event_type=EventTypeEnum.ORDER_CANCELLED,
-                            payload={
-                                "order_id": str(result_order.id),
-                                "user_id": result_order.user_id,
-                                "item_id": str(result_order.item_id),
-                                "quantity": result_order.quantity,
-                            },
-                        )
-                    )
-                    await uow.commit()
-                    logger.info(
-                        "Order with id {} cancelled successfully due to payment service error",
-                        result_order.id,
-                    )
-                    return result_order
-                except Exception as e:
-                    logger.error("Error during order cancelation: {}", e)
-                    raise
-
-        async with self._unit_of_work() as uow:
-            try:
-                await uow.payments.create(
-                    PaymentDTO(
-                        id=payment.id,
-                        user_id=payment.user_id,
-                        order_id=payment.order_id,
-                        amount=payment.amount,
-                        status=payment.status,
-                        idempotency_key=payment.idempotency_key,
-                        created_at=payment.created_at,
-                    )
-                )
-
-                await uow.commit()
-                logger.info(
-                    "Payment with id {} created successfully for order id {}",
-                    payment.id,
-                    result_order.id,
-                )
-            except Exception as e:
-                logger.error("Error during payment creation: {}", e)
-                raise
-
-        return result_order
+            return result_order
 
     async def _get_item(self, item_id: UUID) -> Item:
         item = await self._catalog_service_client.get_item(item_id)

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.infrastructure.repositories import (
     InboxRepository,
+    NotificationRepository,
     OrderRepository,
     OutboxRepository,
     PaymentRepository,
@@ -32,6 +33,7 @@ class _UnitOfWorkImplementation:
         self._payment_repo = None
         self._outbox_repo = None
         self._inbox_repo = None
+        self._notification_repo = None
 
     @property
     def orders(self):
@@ -56,6 +58,12 @@ class _UnitOfWorkImplementation:
         if self._inbox_repo is None:
             self._inbox_repo = InboxRepository(self._session)
         return self._inbox_repo
+
+    @property
+    def notification(self):
+        if self._notification_repo is None:
+            self._notification_repo = NotificationRepository(self._session)
+        return self._notification_repo
 
     async def commit(self):
         await self._session.commit()

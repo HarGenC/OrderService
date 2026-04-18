@@ -104,3 +104,23 @@ class InboxEvent(BaseModel):
     status: InboxEventStatus
     created_at: datetime
     processed_at: datetime | None
+
+
+class NotificationDTO(BaseModel):
+    id: UUID
+    message: str
+    reference_id: UUID
+    idempotency_key: UUID
+    status: str
+    created_at: datetime
+    sent_at: datetime | None
+    retry_count: int
+    next_retry_at: datetime | None
+
+
+class ResponseNotificationDTO(BaseModel):
+    id: UUID
+    user_id: UUID
+    message: str
+    reference_id: UUID
+    created_at: datetime
