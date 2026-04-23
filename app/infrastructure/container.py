@@ -4,13 +4,11 @@ from dependency_injector import containers, providers
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.infrastructure.kafka_consumer import KafkaConsumer
-from app.infrastructure.repos.repositories import (
-    InboxRepository,
-    NotificationRepository,
-    OrderRepository,
-    OutboxRepository,
-    PaymentRepository,
-)
+from app.infrastructure.repos.inbox_repo import InboxRepository
+from app.infrastructure.repos.notification_repo import NotificationRepository
+from app.infrastructure.repos.order_repo import OrderRepository
+from app.infrastructure.repos.outbox_repo import OutboxRepository
+from app.infrastructure.repos.payment_repo import PaymentRepository
 from app.infrastructure.unit_of_work import UnitOfWork
 from app.infrastructure.kafka_producer import KafkaProducer
 
