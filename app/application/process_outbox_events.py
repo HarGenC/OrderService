@@ -1,15 +1,15 @@
 from datetime import datetime, timedelta, timezone
 from loguru import logger
 
-from app.infrastructure.kafka_producer import KafkaProducer
-from app.infrastructure.unit_of_work import UnitOfWork
+from app.application.interfaces.kafka_producer import IKafkaProducer
+from app.application.interfaces.uow import IUnitOfWork
 
 
 class ProcessOutboxEventsUseCase:
     def __init__(
         self,
-        unit_of_work: UnitOfWork,
-        kafka_producer: KafkaProducer,
+        unit_of_work: IUnitOfWork,
+        kafka_producer: IKafkaProducer,
         batch_size: int = 100,
         backoff: int = 2,
     ):
@@ -19,14 +19,14 @@ class ProcessOutboxEventsUseCase:
         self._backoff = backoff
 
     async def __call__(self):
-        async with self._unit_of_work() as uow:
+        async with self._unit_of_work as uow:
             events = await uow.outbox.claim_events(self._batch_size)
             if not events:
                 return
 
         async with self._kafka_producer as kp:
             for event in events:
-                async with self._unit_of_work() as uow:
+                async with self._unit_of_work as uow:
                     try:
                         await kp.send_message(
                             message={
@@ -35,7 +35,6 @@ class ProcessOutboxEventsUseCase:
                                 "idempotency_key": str(event.idempotency_key),
                             },
                             key=str(event.id),
-                            topic="student_system-order.events",
                         )
                     except Exception as e:
                         logger.info("Error sending event {} to Kafka: {}", event.id, e)

@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Self
 
 from aiokafka import AIOKafkaProducer
 
@@ -28,7 +28,7 @@ class KafkaProducer:
         if self._producer:
             await self._producer.stop()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         await self.start()
         return self
 

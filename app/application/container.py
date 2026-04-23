@@ -34,8 +34,8 @@ class ApplicationContainer(containers.DeclarativeContainer):
 
     notification_client = providers.Singleton[NotificationClient](
         NotificationClient,
-        api_key=config.infrastructure.clients.payments_service.api_key,
-        base_url=config.infrastructure.clients.payments_service.base_url,
+        api_key=config.infrastructure.clients.notification_service.api_key,
+        base_url=config.infrastructure.clients.notification_service.base_url,
     )
 
     create_order_use_case = providers.Singleton[CreateOrderUseCase](

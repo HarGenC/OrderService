@@ -2,20 +2,22 @@ from uuid import UUID
 from loguru import logger
 from pydantic import BaseModel
 
+from app.application.dto.notification import CreateNotificationDTO
+from app.application.dto.order import CreateOrderDTO
+from app.application.dto.outbox import CreateOutboxDTO
+from app.application.dto.payment import CreatePaymentDTO
+from app.application.dto.payment_client import CreateRequestPaymentDTO
 from app.application.exceptions import InsufficientQuantity
+from app.application.interfaces.uow import IUnitOfWork
 from app.core.models import (
-    CreateOutboxEventDTO,
     EventTypeEnum,
     PaymentDTO,
     Item,
     Order,
     OrderStatusEnum,
-    RequestPaymentDTO,
 )
-from app.infrastructure.catalog_service_client import CatalogServiceClient
-from app.infrastructure.payments_service_client import PaymentsServiceClient
-from app.infrastructure.repositories import OrderRepository
-from app.infrastructure.unit_of_work import UnitOfWork
+from app.application.interfaces.catalog_client import ICatalogServiceClient
+from app.application.interfaces.payments import IPaymentsService
 
 
 class OrderDTO(BaseModel):
@@ -28,9 +30,9 @@ class OrderDTO(BaseModel):
 class CreateOrderUseCase:
     def __init__(
         self,
-        unit_of_work: UnitOfWork,
-        catalog_service_client: CatalogServiceClient,
-        payments_service_client: PaymentsServiceClient,
+        unit_of_work: IUnitOfWork,
+        catalog_service_client: ICatalogServiceClient,
+        payments_service_client: IPaymentsService,
         service_name: str,
         namespace: str,
     ):
@@ -55,19 +57,18 @@ class CreateOrderUseCase:
 
         try:
             payment = await self._create_payment_in_external_service(result_order, item)
+            await self._record_payment(payment, result_order)
         except Exception as e:
             logger.error("Error during payment creation in external service: {}", e)
             return await self._cancel_order_on_payment_failure(result_order.id)
 
-        await self._record_payment(payment, result_order)
-
         return result_order
 
     async def _record_payment(self, payment: PaymentDTO, result_order: Order) -> None:
-        async with self._unit_of_work() as uow:
+        async with self._unit_of_work as uow:
             try:
                 await uow.payments.create(
-                    PaymentDTO(
+                    CreatePaymentDTO(
                         id=payment.id,
                         user_id=payment.user_id,
                         order_id=payment.order_id,
@@ -86,17 +87,18 @@ class CreateOrderUseCase:
                 )
             except Exception as e:
                 logger.error("Error during payment creation: {}", e)
+
                 raise
 
     async def _cancel_order_on_payment_failure(self, order_id: UUID) -> Order:
         logger.warning("Cancelling order due to payment service error")
-        async with self._unit_of_work() as uow:
+        async with self._unit_of_work as uow:
             try:
                 result_order = await uow.orders.update(
                     order_id=order_id, status=OrderStatusEnum.CANCELLED
                 )
                 await uow.outbox.create(
-                    CreateOutboxEventDTO(
+                    CreateOutboxDTO(
                         event_type=EventTypeEnum.ORDER_CANCELLED,
                         payload={
                             "order_id": str(result_order.id),
@@ -108,7 +110,7 @@ class CreateOrderUseCase:
                 )
 
                 await uow.notification.create(
-                    uow.notification.CreateDTO(
+                    CreateNotificationDTO(
                         message="CANCELLED: Ваш заказ отменен. Причина: ошибка при обработке платежа",
                         reference_id=result_order.id,
                         idempotency_key=str(f"{result_order.id}:CANCELLED"),
@@ -129,7 +131,7 @@ class CreateOrderUseCase:
     ) -> PaymentDTO:
         callback_url = f"http://{self._service_name}.{self._namespace}.svc:8000/api/orders/payment-callback"
         payment = await self._payments_service_client.create_payment(
-            RequestPaymentDTO(
+            CreateRequestPaymentDTO(
                 order_id=str(order.id),
                 amount=str(item.price * order.quantity),
                 callback_url=callback_url,
@@ -144,14 +146,15 @@ class CreateOrderUseCase:
         return payment
 
     async def _check_idempotency_key(self, order: OrderDTO) -> None | Order:
-        async with self._unit_of_work() as uow:
+        async with self._unit_of_work as uow:
             try:
                 order_result = await uow.orders.get_by_idempotency_key(
                     order.idempotency_key
                 )
                 if order_result is not None:
                     logger.info(
-                        f"Order with idempotency_key {order.idempotency_key} already exists."
+                        "Order with idempotency_key {} already exists.",
+                        order.idempotency_key,
                     )
                     if (
                         order_result.user_id != order.user_id
@@ -159,7 +162,8 @@ class CreateOrderUseCase:
                         or order_result.item_id != order.item_id
                     ):
                         logger.warning(
-                            f"Order with idempotency_key {order.idempotency_key} has different data than the current request."
+                            "Order with idempotency_key {} has different data than the current request.",
+                            order.idempotency_key,
                         )
                         raise Exception(
                             "Order with the same idempotency_key but different data already exists."
@@ -171,10 +175,10 @@ class CreateOrderUseCase:
                 raise
 
     async def _create_order(self, order: OrderDTO) -> Order:
-        async with self._unit_of_work() as uow:
+        async with self._unit_of_work as uow:
             try:
                 result_order = await uow.orders.create(
-                    order=OrderRepository.CreateDTO(
+                    CreateOrderDTO(
                         user_id=order.user_id,
                         quantity=order.quantity,
                         item_id=order.item_id,
@@ -183,7 +187,7 @@ class CreateOrderUseCase:
                     )
                 )
                 await uow.outbox.create(
-                    CreateOutboxEventDTO(
+                    CreateOutboxDTO(
                         event_type=EventTypeEnum.ORDER_CREATED,
                         payload={
                             "order_id": str(result_order.id),
@@ -194,7 +198,7 @@ class CreateOrderUseCase:
                     )
                 )
                 await uow.notification.create(
-                    uow.notification.CreateDTO(
+                    CreateNotificationDTO(
                         message="NEW: Ваш заказ создан и ожидает оплаты",
                         reference_id=result_order.id,
                         idempotency_key=str(f"{result_order.id}:NEW"),

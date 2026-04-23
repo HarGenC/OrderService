@@ -71,7 +71,7 @@ async def get_order(
             status_code=HTTPStatus.NOT_FOUND,
         )
     except Exception as e:
-        print(e)
+        logger.error(e)
         return JSONResponse(
             content={"message": "Internal server error while getting order"},
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -95,7 +95,7 @@ async def payment_callback_processing(
             status_code=HTTPStatus.NOT_FOUND,
         )
     except Exception as e:
-        print(e)
+        logger.error(e)
         return JSONResponse(
             content={"message": "Internal server error while callback processing"},
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,

@@ -2,15 +2,16 @@ from datetime import datetime, timedelta, timezone
 
 from loguru import logger
 
-from app.infrastructure.notification_client import NotificationClient
-from app.infrastructure.unit_of_work import UnitOfWork
+from app.application.dto.notification_client import CreateRequestDTO
+from app.application.interfaces.notification_client import INotificationClient
+from app.application.interfaces.uow import IUnitOfWork
 
 
 class ProcessNotificationUseCase:
     def __init__(
         self,
-        unit_of_work: UnitOfWork,
-        notification_client: NotificationClient,
+        unit_of_work: IUnitOfWork,
+        notification_client: INotificationClient,
         batch_size: int = 10,
         backoff: int = 2,
     ):
@@ -20,7 +21,7 @@ class ProcessNotificationUseCase:
         self._backoff = backoff
 
     async def __call__(self):
-        async with self._unit_of_work() as uow:
+        async with self._unit_of_work as uow:
             notifications = await uow.notification.claim_notifications(self._batch_size)
             if not notifications:
                 return
@@ -28,7 +29,7 @@ class ProcessNotificationUseCase:
             for notification in notifications:
                 try:
                     await self._notification_client.send_notification(
-                        self._notification_client.RequestData(
+                        CreateRequestDTO(
                             message=notification.message,
                             reference_id=str(notification.reference_id),
                             idempotency_key=str(notification.idempotency_key),

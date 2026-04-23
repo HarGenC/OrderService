@@ -1,22 +1,23 @@
 from loguru import logger
 
+from app.application.dto.notification import CreateNotificationDTO
+from app.application.dto.outbox import CreateOutboxDTO
 from app.application.exceptions import PaymentNotFound
+from app.application.interfaces.uow import IUnitOfWork
 from app.core.models import (
-    CreateOutboxEventDTO,
     EventTypeEnum,
     OrderStatusEnum,
     RequestCallback,
 )
 from app.infrastructure.exceptions import NotFound
-from app.infrastructure.unit_of_work import UnitOfWork
 
 
 class CallbackProcessingUseCase:
-    def __init__(self, unit_of_work: UnitOfWork):
+    def __init__(self, unit_of_work: IUnitOfWork):
         self._unit_of_work = unit_of_work
 
     async def __call__(self, request_callback: RequestCallback):
-        async with self._unit_of_work() as uow:
+        async with self._unit_of_work as uow:
             try:
                 payment = await uow.payments.get_by_id(request_callback.payment_id)
                 if payment.status != "pending":
@@ -37,7 +38,7 @@ class CallbackProcessingUseCase:
 
                 order = await uow.orders.update(request_callback.order_id, order_status)
                 await uow.outbox.create(
-                    CreateOutboxEventDTO(
+                    CreateOutboxDTO(
                         event_type=event_type,
                         payload={
                             "order_id": str(order.id),
@@ -47,7 +48,7 @@ class CallbackProcessingUseCase:
                     )
                 )
                 await uow.notification.create(
-                    uow.notification.CreateDTO(
+                    CreateNotificationDTO(
                         message=message,
                         reference_id=order.id,
                         idempotency_key=f"{order.id}:{str(order_status)}",

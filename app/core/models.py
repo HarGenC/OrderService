@@ -55,13 +55,6 @@ class Item(BaseModel):
     created_at: datetime
 
 
-class RequestPaymentDTO(BaseModel):
-    order_id: str
-    amount: str
-    callback_url: str
-    idempotency_key: str
-
-
 class PaymentDTO(BaseModel):
     id: UUID
     user_id: UUID
@@ -78,11 +71,6 @@ class RequestCallback(BaseModel):
     status: str
     amount: Decimal
     error_message: str | None
-
-
-class CreateOutboxEventDTO(BaseModel):
-    event_type: EventTypeEnum
-    payload: dict
 
 
 class OutboxEvent(BaseModel):

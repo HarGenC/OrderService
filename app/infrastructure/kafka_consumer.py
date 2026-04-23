@@ -12,9 +12,15 @@ class KafkaConsumer:
         self._bootstrap_servers = bootstrap_servers
         self._kafka_group_id = kafka_group_id
         self._topic = topic
+        print("INIT bootstrap_servers:", bootstrap_servers, type(bootstrap_servers))
 
-    async def start(self):
+    async def _start(self):
         """Запуск consumer"""
+        print(
+            "START bootstrap_servers:",
+            self._bootstrap_servers,
+            type(self._bootstrap_servers),
+        )
         self._consumer = AIOKafkaConsumer(
             self._topic,
             bootstrap_servers=self._bootstrap_servers,
@@ -22,10 +28,15 @@ class KafkaConsumer:
             value_deserializer=lambda m: json.loads(m.decode("utf-8")) if m else None,
             enable_auto_commit=False,
         )
+        print(
+            "START bootstrap_servers:",
+            self._bootstrap_servers,
+            type(self._bootstrap_servers),
+        )
         await self._consumer.start()
 
     async def run(self, process: Callable):
-        await self.start()
+        await self._start()
         logger.info("Kafka consumer is running")
 
         try:
@@ -38,21 +49,26 @@ class KafkaConsumer:
                 event = message.value
 
                 try:
-                    logger.debug(f"Received event: {event}")
+                    logger.debug("Received event: {}", event)
                     is_processed = await process(event)
                     if is_processed:
                         logger.info(
-                            f"Order with id {event.get('order_id')} processed successfully"
+                            "Order with id {} processed successfully",
+                            event.get("order_id"),
                         )
                         await self._consumer.commit()
                     else:
                         logger.info(
-                            f"Unsupported event type {event.get('event_type')} or order_id is not valid {event.get('order_id')}, skipping"
+                            "Unsupported event type {} or order_id is not valid {}, skipping",
+                            event.get("event_type"),
+                            event.get("order_id"),
                         )
                         await self._consumer.commit()
 
                 except DuplicateEventError:
-                    logger.info(f"Order with id {event.get('order_id')} is a duplicate")
+                    logger.info(
+                        "Order with id {} is a duplicate", event.get("order_id")
+                    )
                     await self._consumer.commit()
                     continue
                 except Exception as e:

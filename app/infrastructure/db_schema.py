@@ -18,7 +18,7 @@ class Base(DeclarativeBase):
     pass
 
 
-class Orders_tbl(Base):
+class OrderRow(Base):
     __tablename__ = "orders"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -39,7 +39,7 @@ class Orders_tbl(Base):
     idempotency_key: Mapped[str] = mapped_column(unique=True)
 
 
-class Payments_tbl(Base):
+class PaymentRow(Base):
     __tablename__ = "payments"
 
     id: Mapped[uuid.UUID] = mapped_column(

@@ -1,11 +1,12 @@
-from app.infrastructure.kafka_consumer import KafkaConsumer
-from app.infrastructure.unit_of_work import UnitOfWork
+from app.application.dto.inbox import CreateInboxDTO
+from app.application.interfaces.kafka_consumer import IKafkaConsumer
+from app.application.interfaces.uow import IUnitOfWork
 from app.core.models import EventTypeEnum
 from loguru import logger
 
 
 class ProcessKafkaConsumerUseCase:
-    def __init__(self, unit_of_work: UnitOfWork, kafka_consumer: KafkaConsumer):
+    def __init__(self, unit_of_work: IUnitOfWork, kafka_consumer: IKafkaConsumer):
         self.uow = unit_of_work
         self._kafka_consumer = kafka_consumer
 
@@ -18,7 +19,7 @@ class ProcessKafkaConsumerUseCase:
             EventTypeEnum.ORDER_CANCELLED,
         ):
             return False
-        async with self.uow() as uow:
+        async with self.uow as uow:
             payload = {}
             for _key, _value in event.items():
                 if _key in ("order_id", "event_type"):
@@ -30,7 +31,7 @@ class ProcessKafkaConsumerUseCase:
                 return False
 
             await uow.inbox.create(
-                uow.inbox.CreateDTO(
+                CreateInboxDTO(
                     order_id=event.get("order_id"),
                     event_type=event["event_type"],
                     payload=payload,

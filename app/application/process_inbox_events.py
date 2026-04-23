@@ -1,16 +1,17 @@
 from loguru import logger
 
+from app.application.dto.notification import CreateNotificationDTO
+from app.application.interfaces.uow import IUnitOfWork
 from app.core.models import EventTypeEnum, OrderStatusEnum
-from app.infrastructure.unit_of_work import UnitOfWork
 
 
 class ProcessInboxEventsUseCase:
-    def __init__(self, unit_of_work: UnitOfWork, batch_size: int = 10):
+    def __init__(self, unit_of_work: IUnitOfWork, batch_size: int = 10):
         self._unit_of_work = unit_of_work
         self._batch_size = batch_size
 
     async def __call__(self):
-        async with self._unit_of_work() as uow:
+        async with self._unit_of_work as uow:
             events = await uow.inbox.claim_events(self._batch_size)
             if not events:
                 return
@@ -26,7 +27,7 @@ class ProcessInboxEventsUseCase:
                     await uow.orders.update(event.order_id, status)
                     await uow.inbox.mark_as_processed(event.id)
                     await uow.notification.create(
-                        uow.notification.CreateDTO(
+                        CreateNotificationDTO(
                             message=message,
                             reference_id=event.order_id,
                             idempotency_key=f"{event.order_id}:{str(status)}",

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import List
 from uuid import UUID
 
@@ -9,7 +10,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import (
-    CreateOutboxEventDTO,
+    EventTypeEnum,
     InboxEvent,
     InboxEventStatus,
     NotificationDTO,
@@ -22,9 +23,9 @@ from app.core.models import (
 from app.infrastructure.db_schema import (
     Inbox,
     Notification,
-    Orders_tbl,
+    OrderRow,
     Outbox,
-    Payments_tbl,
+    PaymentRow,
 )
 from app.infrastructure.exceptions import DuplicateEventError, NotFound
 
@@ -41,7 +42,7 @@ class OrderRepository:
         self._session = session
 
     async def create(self, order: CreateDTO, order_id: UUID | None = None) -> Order:
-        order_obj = Orders_tbl(
+        order_obj = OrderRow(
             user_id=order.user_id,
             quantity=order.quantity,
             item_id=order.item_id,
@@ -64,7 +65,7 @@ class OrderRepository:
         )
 
     async def get_by_id(self, order_id: UUID) -> Order:
-        stmt = select(Orders_tbl).where(Orders_tbl.id == order_id)
+        stmt = select(OrderRow).where(OrderRow.id == order_id)
 
         result = await self._session.execute(stmt)
         order = result.scalar_one_or_none()
@@ -84,7 +85,7 @@ class OrderRepository:
 
     async def get_by_idempotency_key(self, idempotency_key: UUID):
         result = await self._session.execute(
-            select(Orders_tbl).where(Orders_tbl.idempotency_key == idempotency_key)
+            select(OrderRow).where(OrderRow.idempotency_key == idempotency_key)
         )
         order = result.scalar_one_or_none()
 
@@ -102,7 +103,7 @@ class OrderRepository:
         )
 
     async def update(self, order_id: UUID, status: OrderStatusEnum) -> Order:
-        stmt = select(Orders_tbl).where(Orders_tbl.id == order_id).with_for_update()
+        stmt = select(OrderRow).where(OrderRow.id == order_id).with_for_update()
 
         result = await self._session.execute(stmt)
         order = result.scalar_one_or_none()
@@ -126,11 +127,20 @@ class OrderRepository:
 
 
 class PaymentRepository:
+    class CreateDTO(BaseModel):
+        id: UUID
+        user_id: UUID
+        order_id: UUID
+        amount: Decimal
+        status: str
+        idempotency_key: str
+        created_at: datetime
+
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def create(self, payment_data: PaymentDTO) -> PaymentDTO:
-        payment = Payments_tbl(
+    async def create(self, payment_data: CreateDTO) -> PaymentDTO:
+        payment = PaymentRow(
             id=payment_data.id,
             user_id=payment_data.user_id,
             order_id=payment_data.order_id,
@@ -145,7 +155,7 @@ class PaymentRepository:
         return payment
 
     async def get_by_id(self, payment_id: UUID) -> PaymentDTO:
-        stmt = select(Payments_tbl).where(Payments_tbl.id == payment_id)
+        stmt = select(PaymentRow).where(PaymentRow.id == payment_id)
 
         result = await self._session.execute(stmt)
         payment = result.scalar_one_or_none()
@@ -164,9 +174,7 @@ class PaymentRepository:
         )
 
     async def update(self, payment_id: UUID, status: str, error_msg: str):
-        stmt = (
-            select(Payments_tbl).where(Payments_tbl.id == payment_id).with_for_update()
-        )
+        stmt = select(PaymentRow).where(PaymentRow.id == payment_id).with_for_update()
 
         result = await self._session.execute(stmt)
         payment = result.scalar_one_or_none()
@@ -182,10 +190,14 @@ class PaymentRepository:
 
 
 class OutboxRepository:
+    class CreateDTO(BaseModel):
+        event_type: EventTypeEnum
+        payload: dict
+
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def create(self, outbox: CreateOutboxEventDTO) -> OutboxEvent:
+    async def create(self, outbox: CreateDTO) -> OutboxEvent:
         outbox_event = Outbox(
             event_type=outbox.event_type,
             payload=outbox.payload,
