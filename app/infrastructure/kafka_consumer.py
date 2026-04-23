@@ -12,26 +12,15 @@ class KafkaConsumer:
         self._bootstrap_servers = bootstrap_servers
         self._kafka_group_id = kafka_group_id
         self._topic = topic
-        print("INIT bootstrap_servers:", bootstrap_servers, type(bootstrap_servers))
 
     async def _start(self):
         """Запуск consumer"""
-        print(
-            "START bootstrap_servers:",
-            self._bootstrap_servers,
-            type(self._bootstrap_servers),
-        )
         self._consumer = AIOKafkaConsumer(
             self._topic,
             bootstrap_servers=self._bootstrap_servers,
             group_id=self._kafka_group_id,
             value_deserializer=lambda m: json.loads(m.decode("utf-8")) if m else None,
             enable_auto_commit=False,
-        )
-        print(
-            "START bootstrap_servers:",
-            self._bootstrap_servers,
-            type(self._bootstrap_servers),
         )
         await self._consumer.start()
 
